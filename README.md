@@ -1,6 +1,6 @@
 # PortfolioProject
 # Useful Insights from the Covid Data(2020-2023)
-I got the data set from ourworlldindata.com and evaluated the following insights:
+I got the data set from ourworldindata.com and evaluated the following insights:
 - Total cases till date(19th June 2023) with total deaths, 29 million deaths worldwide.
 - Total Deaths per Continent:
                Europe is the highest and Oceania is the least. This may question the most advanced healthcare system in the world i.e. in the
