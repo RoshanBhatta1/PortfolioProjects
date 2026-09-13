@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { getValidatedApiKey } from "./env";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
 const MAX_TURNS = 4;
@@ -15,7 +16,7 @@ function getClient(): Anthropic {
     // Generous per-request timeout: a search turn with several results is slower
     // than a plain completion, but we never want a hung request to wedge the UI.
     client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: getValidatedApiKey(),
       timeout: 180_000,
       maxRetries: 1,
     });

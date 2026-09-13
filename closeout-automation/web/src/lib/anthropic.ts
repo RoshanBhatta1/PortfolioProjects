@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getValidatedApiKey } from "./env";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
 
@@ -9,7 +10,7 @@ export function isAiConfigured(): boolean {
 }
 
 function getClient(): Anthropic {
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  if (!client) client = new Anthropic({ apiKey: getValidatedApiKey() });
   return client;
 }
 
