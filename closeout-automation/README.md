@@ -68,12 +68,23 @@ Two things happen regularly and both are handled rather than hidden:
 Anything not downloaded is reported as missing, both in the product list and in
 the package-generation response, so nothing silently ships empty.
 
-## Editing the warranty letter
+## The letter and your company profile
 
-The letter lives in `web/src/lib/warranty-letter.ts`. Replace the text with your
-standard wording — every `{{placeholder}}` (client name, address, completion
-date, warranty period, product list) fills automatically from the project. The
-"Preview letter" button on the project page shows the rendered result.
+The letter format matches a real S&R Flooring Concepts closeout letter:
+letterhead block, TEL/FAX/Email, tagline, then either a company recipient with
+an "Attention:" line (commercial — client is a GC) or a direct greeting
+(residential — client is the homeowner), a RE: line naming the project, a
+labour-warranty paragraph naming every manufacturer whose documents are
+included, and a signature block.
+
+**Company Settings** (`/settings`) holds your letterhead once — name, address,
+phone/fax, email, tagline, signer name and title — so it's never re-typed per
+project. Each project only needs the client, the project name/address, the
+completion date, and the products installed; the manufacturer list in the
+letter body is generated automatically from those products.
+
+To change the wording itself, edit `web/src/lib/warranty-letter.ts` and its
+mirror in `claude-skill/closeout-package-builder/templates/`.
 
 ## Running it
 

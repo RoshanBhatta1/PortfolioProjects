@@ -26,6 +26,9 @@ function initDb(): Database.Database {
       public_token TEXT UNIQUE NOT NULL,
       client_name TEXT NOT NULL,
       client_email TEXT,
+      client_company TEXT,
+      client_address TEXT,
+      project_name TEXT,
       project_address TEXT,
       flooring_types TEXT,
       contract_value REAL,
@@ -36,6 +39,21 @@ function initDb(): Database.Database {
       contractor_contact TEXT,
       status TEXT DEFAULT 'in_progress',
       created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS company_settings (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      company_name TEXT,
+      address_line1 TEXT,
+      city_province_postal TEXT,
+      phone TEXT,
+      fax TEXT,
+      email TEXT,
+      tagline TEXT,
+      signer_name TEXT,
+      signer_title TEXT,
+      default_warranty_years INTEGER DEFAULT 1,
       updated_at TEXT NOT NULL
     );
 
@@ -96,6 +114,20 @@ function initDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_activity_project ON activity_log(project_id);
   `);
 
+  // Migrate columns added after initial release — SQLite has no
+  // "ADD COLUMN IF NOT EXISTS", so add and swallow the duplicate-column error.
+  for (const stmt of [
+    `ALTER TABLE projects ADD COLUMN client_company TEXT`,
+    `ALTER TABLE projects ADD COLUMN client_address TEXT`,
+    `ALTER TABLE projects ADD COLUMN project_name TEXT`,
+  ]) {
+    try {
+      db.exec(stmt);
+    } catch {
+      // column already exists
+    }
+  }
+
   return db;
 }
 
@@ -113,6 +145,9 @@ export function nowIso(): string {
 export interface NewProjectInput {
   clientName: string;
   clientEmail?: string;
+  clientCompany?: string;
+  clientAddress?: string;
+  projectName?: string;
   projectAddress?: string;
   flooringTypes?: string;
   contractValue?: number;
@@ -131,10 +166,12 @@ export function createProject(input: NewProjectInput) {
 
   db.prepare(
     `INSERT INTO projects
-      (id, public_token, client_name, client_email, project_address, flooring_types,
+      (id, public_token, client_name, client_email, client_company, client_address,
+       project_name, project_address, flooring_types,
        contract_value, start_date, completion_date, warranty_years,
        contractor_name, contractor_contact, status, created_at, updated_at)
-     VALUES (@id, @publicToken, @clientName, @clientEmail, @projectAddress, @flooringTypes,
+     VALUES (@id, @publicToken, @clientName, @clientEmail, @clientCompany, @clientAddress,
+       @projectName, @projectAddress, @flooringTypes,
        @contractValue, @startDate, @completionDate, @warrantyYears,
        @contractorName, @contractorContact, 'in_progress', @ts, @ts)`
   ).run({
@@ -142,12 +179,15 @@ export function createProject(input: NewProjectInput) {
     publicToken,
     clientName: input.clientName,
     clientEmail: input.clientEmail ?? null,
+    clientCompany: input.clientCompany ?? null,
+    clientAddress: input.clientAddress ?? null,
+    projectName: input.projectName ?? null,
     projectAddress: input.projectAddress ?? null,
     flooringTypes: input.flooringTypes ?? null,
     contractValue: input.contractValue ?? null,
     startDate: input.startDate ?? null,
     completionDate: input.completionDate ?? null,
-    warrantyYears: input.warrantyYears ?? 1,
+    warrantyYears: input.warrantyYears ?? getCompanySettings().default_warranty_years ?? 1,
     contractorName: input.contractorName ?? null,
     contractorContact: input.contractorContact ?? null,
     ts,
@@ -397,4 +437,58 @@ export function getUploadsDir() {
 export function getChecklistItemById(itemId: string) {
   const db = getDb();
   return db.prepare(`SELECT * FROM checklist_items WHERE id = ?`).get(itemId) as any;
+}
+
+export interface CompanySettingsInput {
+  companyName?: string | null;
+  addressLine1?: string | null;
+  cityProvincePostal?: string | null;
+  phone?: string | null;
+  fax?: string | null;
+  email?: string | null;
+  tagline?: string | null;
+  signerName?: string | null;
+  signerTitle?: string | null;
+  defaultWarrantyYears?: number | null;
+}
+
+export function getCompanySettings() {
+  const db = getDb();
+  let row = db.prepare(`SELECT * FROM company_settings WHERE id = 'default'`).get() as any;
+  if (!row) {
+    db.prepare(
+      `INSERT INTO company_settings (id, default_warranty_years, updated_at) VALUES ('default', 1, ?)`
+    ).run(nowIso());
+    row = db.prepare(`SELECT * FROM company_settings WHERE id = 'default'`).get();
+  }
+  return row;
+}
+
+export function updateCompanySettings(input: CompanySettingsInput) {
+  const db = getDb();
+  const current = getCompanySettings();
+
+  const merged = {
+    companyName: input.companyName !== undefined ? input.companyName : current.company_name,
+    addressLine1: input.addressLine1 !== undefined ? input.addressLine1 : current.address_line1,
+    cityProvincePostal:
+      input.cityProvincePostal !== undefined ? input.cityProvincePostal : current.city_province_postal,
+    phone: input.phone !== undefined ? input.phone : current.phone,
+    fax: input.fax !== undefined ? input.fax : current.fax,
+    email: input.email !== undefined ? input.email : current.email,
+    tagline: input.tagline !== undefined ? input.tagline : current.tagline,
+    signerName: input.signerName !== undefined ? input.signerName : current.signer_name,
+    signerTitle: input.signerTitle !== undefined ? input.signerTitle : current.signer_title,
+    defaultWarrantyYears:
+      input.defaultWarrantyYears !== undefined ? input.defaultWarrantyYears : current.default_warranty_years,
+  };
+
+  db.prepare(
+    `UPDATE company_settings SET company_name = @companyName, address_line1 = @addressLine1,
+       city_province_postal = @cityProvincePostal, phone = @phone, fax = @fax, email = @email,
+       tagline = @tagline, signer_name = @signerName, signer_title = @signerTitle,
+       default_warranty_years = @defaultWarrantyYears, updated_at = @ts WHERE id = 'default'`
+  ).run({ ...merged, ts: nowIso() });
+
+  return getCompanySettings();
 }

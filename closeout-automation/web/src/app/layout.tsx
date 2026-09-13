@@ -23,6 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <a href="/projects/new" className="hover:text-brand-600">
                   New Project
                 </a>
+                <a href="/settings" className="hover:text-brand-600">
+                  Company Settings
+                </a>
               </nav>
             </div>
           </header>

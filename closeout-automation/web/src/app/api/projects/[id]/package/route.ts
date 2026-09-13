@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProjectById, addActivity } from "@/lib/db";
+import { getProjectById, getCompanySettings, addActivity } from "@/lib/db";
 import { buildClosePackage } from "@/lib/pdf";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,11 +9,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { pdf, included, missing } = await buildClosePackage({
     clientName: project.client_name,
+    clientCompany: project.client_company,
+    clientAddress: project.client_address,
+    projectName: project.project_name,
     projectAddress: project.project_address,
     completionDate: project.completion_date,
     warrantyYears: project.warranty_years,
-    contractorName: project.contractor_name,
-    contractorContact: project.contractor_contact,
+    company: getCompanySettings(),
     products: project.products,
   });
 

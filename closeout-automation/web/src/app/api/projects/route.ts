@@ -15,14 +15,15 @@ export async function POST(req: NextRequest) {
   const project = createProject({
     clientName: body.clientName,
     clientEmail: body.clientEmail,
+    clientCompany: body.clientCompany,
+    clientAddress: body.clientAddress,
+    projectName: body.projectName,
     projectAddress: body.projectAddress,
     flooringTypes: body.flooringTypes,
     contractValue: body.contractValue ? Number(body.contractValue) : undefined,
     startDate: body.startDate,
     completionDate: body.completionDate,
     warrantyYears: body.warrantyYears ? Number(body.warrantyYears) : undefined,
-    contractorName: body.contractorName,
-    contractorContact: body.contractorContact,
   });
 
   return NextResponse.json({ project }, { status: 201 });

@@ -22,16 +22,28 @@ The time sink is #1 and #2 — hunting manufacturer websites for the right PDF
 for the specific product line. That is what this skill automates. The admin
 reviews what was found and sends it.
 
-## Step 1 — Get the product list
+## Step 1 — Get the company profile and product list
 
-You need, for each product installed:
-- Manufacturer (e.g. Torlys, Shaw, Mohawk, Mercier, Karndean)
-- Product line / collection (e.g. EverWood Premier, Floorté Plus)
-- Colour or style (helps disambiguate, often not needed for the docs)
-- Room / area (goes on the letter, not needed for the search)
+**Company profile** (ask once, reuse across every project): company name,
+address, phone/fax, email, tagline, signer name and title, default warranty
+period. This is letterhead information — don't re-ask for it per project.
 
-Plus the project details for the letter: client name, project address,
-completion date, warranty period (default 1 year), contractor name and contact.
+**Per project**, you need:
+- Whether the client is **commercial** (a GC or property manager — the letter
+  gets an `Attention:` line) or **residential** (the homeowner directly)
+- Client company name (commercial only), contact/recipient name, mailing
+  address (optional)
+- Project name (short label for the RE: line, e.g. "Pizza Carmelina") and the
+  project/site address
+- Completion date, warranty period (default to the company's standard)
+
+For each product installed:
+- Manufacturer (e.g. Torlys, Shaw, Mohawk, Mercier, Karndean, Centura, Anatolia)
+- Product line / collection (helps the document search; not needed in the letter)
+
+The letter only ever lists **manufacturer names**, not products or rooms —
+match the real example: "Warranty and Maintenance information from
+Gesco/Armstrong, Centura Tile, Anatolia Tile & TTMAC is included."
 
 If any of this is missing, ask — don't guess. These facts end up in a document
 the customer keeps for warranty claims.

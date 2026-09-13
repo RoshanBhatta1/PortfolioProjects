@@ -1,81 +1,112 @@
 /**
- * The standard workmanship warranty letter sent with every closeout package.
- * Edit the text here to match your company's wording — every {{placeholder}} is
- * filled from the project record at generation time.
+ * Renders the standard closeout warranty letter. Matches the real template:
+ * letterhead block, TEL/FAX/Email line, tagline, then either a company recipient
+ * with an "Attention:" line (commercial — client is a GC) or a direct greeting
+ * (residential — client is the homeowner), a RE: line naming the project, the
+ * labour-warranty paragraph naming the manufacturers included, and a signature
+ * block. Company/letterhead fields come from company_settings (set once, not
+ * re-typed per project); everything else comes from the project record.
  */
-export const WARRANTY_LETTER_TEMPLATE = `{{contractorName}}
-{{contractorContact}}
 
-{{date}}
-
-{{clientName}}
-{{projectAddress}}
-
-RE: Warranty — Flooring Installation at {{projectAddress}}
-
-Dear {{clientName}},
-
-Thank you for choosing {{contractorName}} for your recent flooring project.
-
-We are pleased to confirm that the flooring products installed at the above address
-are warranted for a period of {{warrantyYears}} year(s) from the date of completion,
-{{completionDate}}.
-
-Products installed:
-{{productList}}
-
-Enclosed with this letter you will find:
-  - The manufacturer's warranty documentation for the products installed
-  - The manufacturer's care and maintenance instructions
-
-Please review the care and maintenance instructions carefully. Following the
-manufacturer's recommended cleaning and maintenance procedures is required to keep
-your product warranty valid.
-
-If you have any questions about your flooring, your warranty coverage, or if you
-notice an issue you believe is covered, please contact us at {{contractorContact}}
-and we will be happy to assist.
-
-Thank you again for your business.
-
-Sincerely,
-
-{{contractorName}}
-`;
+export interface CompanyInfo {
+  company_name?: string | null;
+  address_line1?: string | null;
+  city_province_postal?: string | null;
+  phone?: string | null;
+  fax?: string | null;
+  email?: string | null;
+  tagline?: string | null;
+  signer_name?: string | null;
+  signer_title?: string | null;
+}
 
 export interface LetterContext {
   clientName: string;
+  clientCompany?: string | null;
+  clientAddress?: string | null;
+  projectName?: string | null;
   projectAddress?: string | null;
   completionDate?: string | null;
   warrantyYears?: number | null;
-  contractorName?: string | null;
-  contractorContact?: string | null;
-  products: { manufacturer: string; product_line?: string | null; colour_style?: string | null; room?: string | null }[];
+  products: { manufacturer: string }[];
+  company: CompanyInfo;
 }
 
-function formatProductList(products: LetterContext["products"]): string {
-  if (products.length === 0) return "  - [no products recorded on this project]";
-  return products
-    .map((p) => {
-      const name = [p.manufacturer, p.product_line, p.colour_style].filter(Boolean).join(" ");
-      return p.room ? `  - ${name} (${p.room})` : `  - ${name}`;
-    })
-    .join("\n");
+export function formatManufacturerList(manufacturers: string[]): string {
+  const unique = Array.from(new Set(manufacturers.map((m) => m.trim()).filter(Boolean)));
+  if (unique.length === 0) return "";
+  if (unique.length === 1) return unique[0];
+  if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
+  return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
+}
+
+function formatDate(): string {
+  return new Date().toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
 }
 
 export function renderWarrantyLetter(ctx: LetterContext): string {
-  const values: Record<string, string> = {
-    contractorName: ctx.contractorName || "[Your company name]",
-    contractorContact: ctx.contractorContact || "[Your contact info]",
-    date: new Date().toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }),
-    clientName: ctx.clientName,
-    projectAddress: ctx.projectAddress || "[Project address]",
-    completionDate: ctx.completionDate || "[Completion date]",
-    warrantyYears: String(ctx.warrantyYears || 1),
-    productList: formatProductList(ctx.products),
-  };
+  const company = ctx.company || {};
+  const companyName = company.company_name || "[Your company name]";
+  const lines: string[] = [];
 
-  return WARRANTY_LETTER_TEMPLATE.replace(/\{\{(\w+)\}\}/g, (match, key) =>
-    key in values ? values[key] : match
-  );
+  // Letterhead
+  lines.push(companyName);
+  const companyAddress = [company.address_line1, company.city_province_postal].filter(Boolean).join(", ");
+  if (companyAddress) lines.push(companyAddress);
+  lines.push("");
+
+  const contactLine = [company.phone ? `TEL: ${company.phone}` : null, company.fax ? `FAX: ${company.fax}` : null]
+    .filter(Boolean)
+    .join("  ");
+  if (contactLine) lines.push(contactLine);
+  if (company.email) lines.push(`Email: ${company.email}`);
+  if (contactLine || company.email) lines.push("");
+
+  if (company.tagline) {
+    lines.push(company.tagline);
+    lines.push("");
+  }
+
+  lines.push(formatDate());
+  lines.push("");
+
+  // Recipient
+  const isCommercial = Boolean(ctx.clientCompany);
+  lines.push(isCommercial ? ctx.clientCompany! : ctx.clientName);
+  if (ctx.clientAddress) {
+    for (const line of ctx.clientAddress.split("\n")) {
+      if (line.trim()) lines.push(line.trim());
+    }
+  }
+  lines.push("");
+
+  if (isCommercial) {
+    lines.push(`Attention: ${ctx.clientName}`);
+  }
+
+  const projectLabel = ctx.projectName || "[Project name]";
+  const reLine = ctx.projectAddress ? `${projectLabel} – ${ctx.projectAddress}` : projectLabel;
+  lines.push(`RE: ${reLine}`);
+  lines.push(`Dear ${ctx.clientName},`);
+
+  const manufacturerList = formatManufacturerList(ctx.products.map((p) => p.manufacturer));
+  const warrantyYears = ctx.warrantyYears || 1;
+  const yearWord = warrantyYears === 1 ? "year" : "years";
+
+  const bodyParagraph = manufacturerList
+    ? `${companyName} hereby warrantees the labour on the above project for ${warrantyYears} ${yearWord} from ` +
+      `the date of substantial completion. Warranty and Maintenance information from\n${manufacturerList} is included.`
+    : `${companyName} hereby warrantees the labour on the above project for ${warrantyYears} ${yearWord} from ` +
+      `the date of substantial completion.`;
+
+  lines.push(bodyParagraph);
+  lines.push("");
+  lines.push("We look forward to future projects. If you require further information, please do not hesitate to\ncall.");
+  lines.push("");
+  lines.push("Sincerely,");
+  lines.push("");
+  lines.push(company.signer_name || "[Signer name]");
+  if (company.signer_title) lines.push(company.signer_title);
+
+  return lines.join("\n");
 }

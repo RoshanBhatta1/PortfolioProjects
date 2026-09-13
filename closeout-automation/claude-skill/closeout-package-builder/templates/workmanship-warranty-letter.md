@@ -1,48 +1,48 @@
 # Workmanship Warranty Letter — Template
 
-Mirrors the letter the web app generates (`web/src/lib/warranty-letter.ts`).
-Keep the two in sync if you change the wording.
+Matches the letter the web app generates (`web/src/lib/warranty-letter.ts`) and
+a real S&R Flooring Concepts closeout letter. Keep the two in sync if you
+change the wording.
+
+Two recipient styles:
+- **Commercial** — the client is a GC or property manager. Address the
+  company, add an `Attention:` line for the contact person, and greet them
+  by name.
+- **Residential** — the client is the homeowner. Address them directly, no
+  `Attention:` line.
 
 Fill every `{{placeholder}}`. If a detail is unknown, write `[insert detail]`
-rather than guessing.
+rather than guessing. `{{manufacturerList}}` is every distinct manufacturer
+across the products installed, formatted as "A, B, C & D" (no comma before
+the &).
 
 ---
 
-{{contractorName}}
-{{contractorContact}}
+{{companyName}}
+{{companyAddress}}
+
+TEL: {{companyPhone}}  FAX: {{companyFax}}
+Email: {{companyEmail}}
+
+{{companyTagline}}
 
 {{date}}
 
-{{clientName}}
-{{projectAddress}}
+{{clientCompanyOrName}}
+{{clientAddressLines}}
 
-RE: Warranty — Flooring Installation at {{projectAddress}}
+Attention: {{contactName}}  ← commercial only, omit for residential
+RE: {{projectName}} – {{projectAddress}}
+Dear {{contactName}},
 
-Dear {{clientName}},
+{{companyName}} hereby warrantees the labour on the above project for
+{{warrantyYears}} year(s) from the date of substantial completion. Warranty
+and Maintenance information from {{manufacturerList}} is included.
 
-Thank you for choosing {{contractorName}} for your recent flooring project.
-
-We are pleased to confirm that the flooring products installed at the above
-address are warranted for a period of {{warrantyYears}} year(s) from the date
-of completion, {{completionDate}}.
-
-Products installed:
-{{productList}}
-
-Enclosed with this letter you will find:
-  - The manufacturer's warranty documentation for the products installed
-  - The manufacturer's care and maintenance instructions
-
-Please review the care and maintenance instructions carefully. Following the
-manufacturer's recommended cleaning and maintenance procedures is required to
-keep your product warranty valid.
-
-If you have any questions about your flooring, your warranty coverage, or if
-you notice an issue you believe is covered, please contact us at
-{{contractorContact}} and we will be happy to assist.
-
-Thank you again for your business.
+We look forward to future projects. If you require further information,
+please do not hesitate to call.
 
 Sincerely,
 
-{{contractorName}}
+{{signerName}}
+{{signerTitle}}

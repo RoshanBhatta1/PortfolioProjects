@@ -30,10 +30,10 @@ export default function DashboardPage() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-gray-900">{p.client_name}</div>
+                  <div className="font-medium text-gray-900">{p.client_company || p.client_name}</div>
                   <div className="text-sm text-gray-500">
+                    {p.project_name ? `${p.project_name} — ` : ""}
                     {p.project_address || "No address on file"}
-                    {p.flooring_types ? ` · ${p.flooring_types}` : ""}
                   </div>
                 </div>
                 <span className="badge badge-uploaded">{p.status.replace("_", " ")}</span>

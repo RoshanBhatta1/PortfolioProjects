@@ -147,13 +147,18 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
       <div className="mb-6 card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">{project.client_name}</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {project.client_company || project.client_name}
+            </h1>
+            {project.client_company && (
+              <div className="mt-0.5 text-sm text-gray-500">Attention: {project.client_name}</div>
+            )}
             <div className="mt-1 text-sm text-gray-500">
+              {project.project_name ? `${project.project_name} — ` : ""}
               {project.project_address || "No address on file"}
             </div>
             <div className="mt-1 text-sm text-gray-500">
-              {project.flooring_types || "Flooring type not specified"}
-              {project.completion_date ? ` · Completed ${project.completion_date}` : ""}
+              {project.completion_date ? `Completed ${project.completion_date}` : "Completion date not set"}
               {` · ${project.warranty_years || 1} yr workmanship warranty`}
             </div>
           </div>
