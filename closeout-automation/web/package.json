@@ -8,9 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
+    "@anthropic-ai/sdk": "^0.125.0",
     "better-sqlite3": "^11.7.0",
     "next": "15.5.25",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

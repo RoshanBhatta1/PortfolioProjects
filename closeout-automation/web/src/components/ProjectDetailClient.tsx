@@ -2,15 +2,9 @@
 
 import { useMemo, useState } from "react";
 import ProgressBar from "./ProgressBar";
+import ProductsPanel from "./ProductsPanel";
 
 const STATUS_OPTIONS = ["pending", "uploaded", "verified", "waived"] as const;
-
-const DRAFT_LABELS: Record<string, string> = {
-  workmanship_warranty: "workmanship warranty letter",
-  care_guide: "care & maintenance guide",
-  cover_letter: "cover letter",
-  outstanding_email: "outstanding items email",
-};
 
 export default function ProjectDetailClient({ initialProject }: { initialProject: any }) {
   const [project, setProject] = useState(initialProject);
@@ -20,6 +14,7 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
   const [moistureResult, setMoistureResult] = useState<any>(null);
   const [outstandingDraft, setOutstandingDraft] = useState<string | null>(null);
   const [statusUrl, setStatusUrl] = useState("");
+  const [letter, setLetter] = useState<string | null>(null);
 
   useState(() => {
     if (typeof window !== "undefined") {
@@ -36,18 +31,20 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
     return Array.from(map.entries());
   }, [project.checklist]);
 
-  const latestDraftByType = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const d of project.drafts) {
-      if (!map.has(d.draft_type)) map.set(d.draft_type, d);
-    }
-    return map;
-  }, [project.drafts]);
-
   async function refresh() {
     const res = await fetch(`/api/projects/${project.id}`);
     const data = await res.json();
     if (res.ok) setProject(data.project);
+  }
+
+  async function loadLetter() {
+    if (letter !== null) {
+      setLetter(null);
+      return;
+    }
+    const res = await fetch(`/api/projects/${project.id}/letter`);
+    const data = await res.json();
+    if (res.ok) setLetter(data.letter);
   }
 
   async function handleStatusChange(itemId: string, status: string) {
@@ -196,6 +193,31 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
 
       {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
+      <div className="mb-6">
+        <ProductsPanel projectId={project.id} products={project.products} onChange={refresh} />
+      </div>
+
+      <div className="mb-6 card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-medium text-gray-900">Workmanship warranty letter</h2>
+            <p className="text-sm text-gray-500">
+              Goes at the front of the package. Edit the wording in
+              <code className="mx-1 rounded bg-gray-100 px-1 text-xs">src/lib/warranty-letter.ts</code>
+              to match your standard letter.
+            </p>
+          </div>
+          <button className="btn btn-secondary" onClick={loadLetter}>
+            {letter !== null ? "Hide preview" : "Preview letter"}
+          </button>
+        </div>
+        {letter !== null && (
+          <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm text-gray-800">
+            {letter}
+          </pre>
+        )}
+      </div>
+
       <div className="mb-6 card p-5">
         <div className="flex items-center justify-between">
           <div>
@@ -229,14 +251,9 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
                   key={item.id}
                   item={item}
                   busy={busyItem === item.id}
-                  draft={item.draft_type ? latestDraftByType.get(item.draft_type) : undefined}
                   onStatusChange={(status) => handleStatusChange(item.id, status)}
                   onNotesSave={(notes) => handleNotesSave(item.id, notes)}
                   onUpload={(file) => handleUpload(item.id, file)}
-                  onGenerateDraft={
-                    item.draft_type ? () => handleGenerateDraft(item.draft_type, item.id) : undefined
-                  }
-                  draftBusy={busyItem === item.id}
                   extra={
                     item.key === "moisture-test" ? (
                       <div className="mt-3 rounded-lg border border-dashed border-gray-300 p-3">
@@ -297,26 +314,19 @@ export default function ProjectDetailClient({ initialProject }: { initialProject
 function ChecklistItem({
   item,
   busy,
-  draft,
   onStatusChange,
   onNotesSave,
   onUpload,
-  onGenerateDraft,
-  draftBusy,
   extra,
 }: {
   item: any;
   busy: boolean;
-  draft?: any;
   onStatusChange: (status: string) => void;
   onNotesSave: (notes: string) => void;
   onUpload: (file: File) => void;
-  onGenerateDraft?: () => void;
-  draftBusy: boolean;
   extra?: React.ReactNode;
 }) {
   const [notes, setNotes] = useState(item.notes || "");
-  const [showDraft, setShowDraft] = useState(false);
 
   return (
     <div className="rounded-lg border border-gray-200 p-3">
@@ -357,23 +367,7 @@ function ChecklistItem({
           </a>
         )}
 
-        {onGenerateDraft && (
-          <button className="btn btn-secondary text-xs" disabled={draftBusy} onClick={onGenerateDraft}>
-            {draftBusy ? "Drafting..." : draft ? "Regenerate with AI" : "Generate with AI"}
-          </button>
-        )}
-        {draft && (
-          <button className="text-xs text-brand-600 hover:underline" onClick={() => setShowDraft((s) => !s)}>
-            {showDraft ? "Hide draft" : "View draft"}
-          </button>
-        )}
       </div>
-
-      {showDraft && draft && (
-        <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs text-gray-800">
-          {draft.content}
-        </pre>
-      )}
 
       <div className="mt-2 flex items-center gap-2">
         <input

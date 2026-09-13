@@ -56,6 +56,25 @@ function initDb(): Database.Database {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      manufacturer TEXT NOT NULL,
+      product_line TEXT,
+      colour_style TEXT,
+      room TEXT,
+      search_status TEXT NOT NULL DEFAULT 'not_searched',
+      search_notes TEXT,
+      warranty_url TEXT,
+      warranty_title TEXT,
+      warranty_file_path TEXT,
+      maintenance_url TEXT,
+      maintenance_title TEXT,
+      maintenance_file_path TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS ai_drafts (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -72,6 +91,7 @@ function initDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_checklist_project ON checklist_items(project_id);
+    CREATE INDEX IF NOT EXISTS idx_products_project ON products(project_id);
     CREATE INDEX IF NOT EXISTS idx_drafts_project ON ai_drafts(project_id);
     CREATE INDEX IF NOT EXISTS idx_activity_project ON activity_log(project_id);
   `);
@@ -206,6 +226,9 @@ function attachRelations(project: any) {
   const items = db
     .prepare(`SELECT * FROM checklist_items WHERE project_id = ? ORDER BY sort_order ASC`)
     .all(project.id);
+  const products = db
+    .prepare(`SELECT * FROM products WHERE project_id = ? ORDER BY created_at ASC`)
+    .all(project.id);
   const drafts = db
     .prepare(`SELECT * FROM ai_drafts WHERE project_id = ? ORDER BY created_at DESC`)
     .all(project.id);
@@ -219,10 +242,105 @@ function attachRelations(project: any) {
   return {
     ...project,
     checklist: items,
+    products,
     drafts,
     activity,
     progress: { total, done, percent: total ? Math.round((done / total) * 100) : 0 },
   };
+}
+
+export interface NewProductInput {
+  projectId: string;
+  manufacturer: string;
+  productLine?: string;
+  colourStyle?: string;
+  room?: string;
+}
+
+export function createProduct(input: NewProductInput) {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const ts = nowIso();
+  db.prepare(
+    `INSERT INTO products (id, project_id, manufacturer, product_line, colour_style, room, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    input.projectId,
+    input.manufacturer,
+    input.productLine ?? null,
+    input.colourStyle ?? null,
+    input.room ?? null,
+    ts,
+    ts
+  );
+  addActivity(input.projectId, `Product added: ${input.manufacturer} ${input.productLine ?? ""}`.trim());
+  return getProductById(id);
+}
+
+export function getProductById(id: string) {
+  return getDb().prepare(`SELECT * FROM products WHERE id = ?`).get(id) as any;
+}
+
+export function updateProduct(
+  id: string,
+  updates: Partial<{
+    manufacturer: string;
+    productLine: string;
+    colourStyle: string;
+    room: string;
+    searchStatus: string;
+    searchNotes: string;
+    warrantyUrl: string | null;
+    warrantyTitle: string | null;
+    warrantyFilePath: string | null;
+    maintenanceUrl: string | null;
+    maintenanceTitle: string | null;
+    maintenanceFilePath: string | null;
+  }>
+) {
+  const db = getDb();
+  const current = getProductById(id);
+  if (!current) return null;
+
+  const merged = {
+    manufacturer: updates.manufacturer ?? current.manufacturer,
+    productLine: updates.productLine ?? current.product_line,
+    colourStyle: updates.colourStyle ?? current.colour_style,
+    room: updates.room ?? current.room,
+    searchStatus: updates.searchStatus ?? current.search_status,
+    searchNotes: updates.searchNotes !== undefined ? updates.searchNotes : current.search_notes,
+    warrantyUrl: updates.warrantyUrl !== undefined ? updates.warrantyUrl : current.warranty_url,
+    warrantyTitle: updates.warrantyTitle !== undefined ? updates.warrantyTitle : current.warranty_title,
+    warrantyFilePath:
+      updates.warrantyFilePath !== undefined ? updates.warrantyFilePath : current.warranty_file_path,
+    maintenanceUrl: updates.maintenanceUrl !== undefined ? updates.maintenanceUrl : current.maintenance_url,
+    maintenanceTitle:
+      updates.maintenanceTitle !== undefined ? updates.maintenanceTitle : current.maintenance_title,
+    maintenanceFilePath:
+      updates.maintenanceFilePath !== undefined
+        ? updates.maintenanceFilePath
+        : current.maintenance_file_path,
+  };
+
+  db.prepare(
+    `UPDATE products SET manufacturer = @manufacturer, product_line = @productLine,
+       colour_style = @colourStyle, room = @room, search_status = @searchStatus,
+       search_notes = @searchNotes, warranty_url = @warrantyUrl, warranty_title = @warrantyTitle,
+       warranty_file_path = @warrantyFilePath, maintenance_url = @maintenanceUrl,
+       maintenance_title = @maintenanceTitle, maintenance_file_path = @maintenanceFilePath,
+       updated_at = @ts WHERE id = @id`
+  ).run({ ...merged, ts: nowIso(), id });
+
+  return getProductById(id);
+}
+
+export function deleteProduct(id: string) {
+  const product = getProductById(id);
+  if (!product) return false;
+  getDb().prepare(`DELETE FROM products WHERE id = ?`).run(id);
+  addActivity(product.project_id, `Product removed: ${product.manufacturer}`);
+  return true;
 }
 
 export function updateChecklistItem(

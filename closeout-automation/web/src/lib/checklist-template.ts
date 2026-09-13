@@ -5,11 +5,7 @@ export type ChecklistCategory =
   | "Financial & Legal"
   | "Handover & Sign-off";
 
-export type DraftType =
-  | "workmanship_warranty"
-  | "care_guide"
-  | "cover_letter"
-  | "outstanding_email";
+export type DraftType = "outstanding_email";
 
 export interface ChecklistTemplateItem {
   key: string;
@@ -61,29 +57,27 @@ export const FLOORING_CLOSEOUT_TEMPLATE: ChecklistTemplateItem[] = [
   },
   {
     key: "product-warranty",
-    label: "Manufacturer product warranty registered (product, lot/batch #, SKU)",
+    label: "Manufacturer warranty document attached for every product",
     category: "Warranty & Product",
     required: true,
-    description: "Register with the manufacturer and keep the batch/lot numbers for future claims.",
+    description: "Handled in the Products section — the AI finds and attaches the manufacturer's warranty PDF.",
     aiAssist: false,
   },
   {
-    key: "workmanship-warranty",
-    label: "Workmanship warranty letter issued",
+    key: "care-guide",
+    label: "Manufacturer care & maintenance document attached for every product",
     category: "Warranty & Product",
     required: true,
-    description: "AI-drafted from project details: scope, warranty period, what's covered/excluded.",
-    aiAssist: true,
-    draftType: "workmanship_warranty",
+    description: "Handled in the Products section — the AI finds and attaches the manufacturer's care PDF.",
+    aiAssist: false,
   },
   {
-    key: "care-guide",
-    label: "Care & maintenance guide delivered",
+    key: "warranty-letter",
+    label: "Workmanship warranty letter included in package",
     category: "Warranty & Product",
     required: true,
-    description: "AI-drafted and tailored to the specific flooring type(s) installed.",
-    aiAssist: true,
-    draftType: "care_guide",
+    description: "Generated automatically from your standard template at the front of the package.",
+    aiAssist: false,
   },
   {
     key: "deficiency-list",
@@ -140,15 +134,6 @@ export const FLOORING_CLOSEOUT_TEMPLATE: ChecklistTemplateItem[] = [
     required: true,
     description: "",
     aiAssist: false,
-  },
-  {
-    key: "cover-letter",
-    label: "Closeout package cover letter drafted",
-    category: "Handover & Sign-off",
-    required: true,
-    description: "AI-drafted summary letter that accompanies the final package.",
-    aiAssist: true,
-    draftType: "cover_letter",
   },
   {
     key: "package-delivered",

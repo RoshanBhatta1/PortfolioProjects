@@ -1,110 +1,82 @@
 ---
 name: closeout-package-builder
 description: >
-  Assembles a complete project closeout package for a flooring contractor —
-  checklist status, workmanship warranty letter, care & maintenance guide,
-  cover letter, and an outstanding-items follow-up email — from a call
-  transcript, JotForm intake, or raw project notes. Use when the user says
-  things like "build a closeout package", "get this job closed out", "draft
-  the closeout docs for [client]", pastes a flooring job's notes/transcript
-  and asks for a warranty letter, care guide, or closeout summary, or wants
-  to chase a client for outstanding closeout items.
+  Assembles a flooring project closeout package: finds the manufacturer's
+  official warranty and care/maintenance documents for each product installed,
+  and drafts the standard workmanship warranty letter that goes with them. Use
+  when the user says things like "build a closeout package", "find the warranty
+  and care docs for [product]", "get this job closed out", "draft the closeout
+  letter for [client]", or names a flooring product and asks for its
+  manufacturer documentation.
 ---
 
 # Closeout Package Builder
 
-This skill turns raw project information (a call transcript, a filled-out
-intake form, or the contractor's own notes) into a client-ready closeout
-package for a flooring installation, plus a follow-up email for anything
-still missing. It is the AI concierge deliverable for the "closeout
-automation" à la carte build: something you run live with a client during
-an AI Concierge working session, or hand off entirely as a done-for-you
-service.
+The closeout package a flooring contractor sends a customer is three things:
 
-## Step 1 — Gather project details
+1. The manufacturer's **warranty** document for each product installed
+2. The manufacturer's **care & maintenance** instructions for each product
+3. A standard **workmanship warranty letter** from the contractor
 
-Pull these fields out of whatever input you're given. If the input doesn't
-mention one, ask the contractor directly rather than guessing — these facts
-end up in a legal-ish warranty document, so accuracy matters:
+The time sink is #1 and #2 — hunting manufacturer websites for the right PDF
+for the specific product line. That is what this skill automates. The admin
+reviews what was found and sends it.
 
-- Client name
-- Project address
-- Flooring type(s) installed (be specific — hardwood species, LVP brand,
-  tile size, carpet fiber, etc. — the care guide depends on this)
-- Completion date
-- Workmanship warranty period (default to 1 year if the contractor doesn't
-  have a standard policy)
-- Contractor / company name and contact info
-- Contract value (optional, only needed if generating an ROI-style summary)
+## Step 1 — Get the product list
 
-If a `client-intake-form.md` submission is provided, read fields directly
-from it instead of re-asking.
+You need, for each product installed:
+- Manufacturer (e.g. Torlys, Shaw, Mohawk, Mercier, Karndean)
+- Product line / collection (e.g. EverWood Premier, Floorté Plus)
+- Colour or style (helps disambiguate, often not needed for the docs)
+- Room / area (goes on the letter, not needed for the search)
 
-## Step 2 — Walk the checklist
+Plus the project details for the letter: client name, project address,
+completion date, warranty period (default 1 year), contractor name and contact.
 
-Open `templates/checklist-flooring-canada.md`. For each item, decide from
-the input whether it's:
-- **Done** — clearly confirmed in the transcript/notes
-- **Outstanding** — not mentioned, or mentioned as not yet done
-- **N/A** — genuinely doesn't apply (e.g. no permit was required for this
-  scope)
+If any of this is missing, ask — don't guess. These facts end up in a document
+the customer keeps for warranty claims.
 
-Report this back to the user as a simple status list before drafting
-anything, so they can correct you if you misread something.
+## Step 2 — Find the manufacturer documents
 
-Pay special attention to the **subfloor moisture test**. This is the
-single biggest cause of flooring warranty claims and callbacks. If it
-isn't mentioned, flag it explicitly and ask for the reading rather than
-assuming it passed. Typical pass thresholds (use the manufacturer's stated
-threshold instead if one is given):
-- ASTM F2170 relative humidity: ≤ 75%
-- ASTM F1869 calcium chloride: ≤ 3 lbs / 1,000 sq ft / 24 hrs
+For each product, search the web for the two documents. Rules that matter:
 
-If the contractor pastes raw moisture-report text, extract: test method,
-reading, and pass/fail against the threshold above, and say so plainly if
-it's a fail or borderline — don't bury it.
+- **Prefer the manufacturer's own site.** A retailer or distributor copy is a
+  last resort — say so if you use one.
+- **Match the product line.** Many manufacturers publish per-collection
+  warranties. If they only publish one warranty covering a whole category
+  (e.g. all residential vinyl), that's fine — say which it covers.
+- **Verify the link actually resolves to the document** by fetching it. Do not
+  report a URL you have not confirmed.
+- **Never guess a URL.** A wrong link is worse than no link, because the admin
+  reviewing this will assume it was checked. If you can't find it, say so and
+  let them supply it.
+- **Flag the caveats**: an older version (2019 warranty when 2024 exists), a
+  document covering a broader category, or a third-party copy.
 
-## Step 3 — Draft the AI-assisted documents
+Report for each product: the warranty doc (URL + title + confidence), the care
+doc (URL + title + confidence), and anything the admin should know.
 
-For every checklist item marked outstanding that has an AI draft available,
-use the matching template and fill in the gathered details. Never invent a
-fact you weren't given — use a clearly marked placeholder like
-`[insert detail]` instead.
+## Step 3 — Draft the workmanship warranty letter
 
-- Workmanship warranty letter → `templates/workmanship-warranty-template.md`
-- Care & maintenance guide → `templates/care-maintenance-guide-template.md`
-  (pull only the section(s) matching the flooring type(s) actually
-  installed — don't dump every flooring type's care instructions on a
-  client who only got LVP)
-- Cover letter → `templates/cover-letter-template.md`
+Use `templates/workmanship-warranty-letter.md`. It states that the flooring
+products installed are warranted for the stated period from the completion
+date, lists the products, and points the customer to the enclosed manufacturer
+documents. Fill every `{{placeholder}}`; use `[insert detail]` for anything you
+weren't given.
 
-Keep the tone professional, warm, and plain-spoken — this is a Canadian
-small-business contractor talking to a homeowner or property manager, not
-a law firm. Use Canadian spelling.
+## Step 4 — Hand it to the admin for review
 
-## Step 4 — Assemble the final package
+Output:
+1. The drafted letter
+2. A table of what was found per product, with links and confidence
+3. An explicit list of anything **not** found, so the admin knows what to chase
 
-Once the required items are addressed, output the full closeout package as
-one clean Markdown document in this order, ready to paste into Claude
-Design, Google Docs, or export to PDF:
+Say plainly that the links should be spot-checked before sending — the admin is
+the last line of defence against a wrong warranty document reaching a customer.
 
-1. Cover letter
-2. Checklist summary (grouped by category, with status)
-3. Workmanship warranty
-4. Care & maintenance guide
+## Note on what NOT to do
 
-## Step 5 — Draft the outstanding-items email (if anything is still open)
-
-If any required item is still outstanding, draft a short, friendly email to
-the client (under 150 words) listing exactly what's needed and why it
-matters for their warranty coverage. Output this separately from the
-package so the contractor can send it right away.
-
-## Notes on positioning
-
-This skill is one deliverable inside the AI Concierge retainer (the AOA
-loop: Audit the current closeout process → Optimize it into this
-checklist → Automate the drafting). It can also be sold as a standalone
-à la carte build — a one-time setup for a contractor's closeout workflow —
-typically priced $1,000–$3,000 depending on how much of their existing
-process needs to be reverse-engineered into the checklist.
+Do **not** write your own care and maintenance instructions. The customer needs
+the manufacturer's actual document — following it is what keeps their product
+warranty valid, and a summary you wrote could contradict it. Same for the
+product warranty: find the real one, never paraphrase it.

@@ -1,84 +1,81 @@
-# Closeout Automation — AI-Assisted Project Closeout for Flooring Contractors
+# Closeout Automation — AI-Assisted Closeout Packages for Flooring Contractors
 
-A closeout document automation system built for a flooring-contractor AI
-automation agency operating in Canada. It's the "à la carte build" from
-the AI offer ladder: a standalone deliverable you can sell on its own
-($1,000–$3,000 one-time setup), or run live during AI Concierge retainer
-sessions as the recurring AOA (Audit → Optimize → Automate) loop on a
-client's closeout process.
+Automates the part of a flooring closeout that actually eats admin time: hunting
+manufacturer websites for the right warranty and care/maintenance PDFs for each
+product installed, then assembling them into one client-ready package.
 
-Project closeout is a classic high-frequency, high-friction bottleneck for
-flooring contractors: warranty letters, care guides, moisture test
-records, lien waivers, WSIB clearance, deficiency sign-off — a dozen-plus
-documents that determine whether the contractor gets paid on time and
-whether a future warranty claim is even valid. This system turns that
-into a tracked checklist with AI doing the actual drafting.
+## The workflow this replaces
+
+A flooring closeout package is three things:
+
+1. The manufacturer's **warranty** document for each product installed
+2. The manufacturer's **care & maintenance** instructions for each product
+3. The contractor's standard **1-year workmanship warranty letter**
+
+Items 1 and 2 are the time sink — an admin searching manufacturer sites,
+finding the right PDF for the right product line, downloading it, and attaching
+it. Item 3 is the same letter every time with the details swapped.
+
+**What this system does:** you enter the products installed, it searches the web
+for the official manufacturer documents, downloads them, generates the warranty
+letter, and merges everything into a single PDF. The admin reviews what was
+found and sends it.
 
 ## What's in here
 
 ```
 closeout-automation/
-├── web/                          Next.js app — the product itself
-│   └── src/
-│       ├── lib/
-│       │   ├── checklist-template.ts   The 16-item flooring closeout checklist (Canada)
-│       │   ├── db.ts                   SQLite persistence (projects, checklist, AI drafts, activity)
-│       │   ├── anthropic.ts            Claude prompts: warranty letter, care guide, cover letter,
-│       │   │                            outstanding-items email, moisture-report extraction
-│       │   └── pdf.ts                  Assembles the final closeout PDF package
-│       └── app/                        Dashboard, new-project form, project detail, public client
-│                                        status page
-└── claude-skill/
-    └── closeout-package-builder/       A portable Claude Skill version of the same workflow —
-                                          run it inside Claude/Claude Cowork without hosting anything
+├── web/                              Next.js app — the product
+│   └── src/lib/
+│       ├── document-finder.ts        Claude + web search → candidate document URLs
+│       ├── download.ts               Downloads candidates, verifies they're real PDFs
+│       ├── warranty-letter.ts        Your standard letter template (edit this)
+│       ├── pdf.ts                    Merges letter + manufacturer PDFs into one package
+│       └── checklist-template.ts     Secondary closeout checklist (permits, lien waiver, etc.)
+├── claude-skill/
+│   └── closeout-package-builder/     Same workflow as a Claude Skill (no hosting needed)
+└── samples/                          Drop your real closeout examples here to tune the templates
 ```
 
-## Two ways to sell/run this
+## How the document search works
 
-1. **The web app** (`web/`) — a real multi-client tool. Each project gets
-   its own checklist, file uploads, AI-drafted documents, a shareable
-   client status link, and a one-click closeout PDF. Good for running
-   this as your own internal ops tool or reselling as a hosted product.
+For each product, two searches run in parallel (warranty, care & maintenance).
+Each returns up to 3 ranked candidate URLs. The app then **downloads** each
+candidate in order and keeps the first one that is genuinely a PDF.
 
-2. **The Claude Skill** (`claude-skill/closeout-package-builder/`) —
-   drop this into a Claude Cowork session with a client's call transcript,
-   intake form, or notes, and it drafts the same documents without any
-   infrastructure. Good for the live, done-with-you AI Concierge sessions
-   described in the offer ladder, or for contractors who don't want a
-   separate login to manage.
+That division of labour is deliberate. An earlier version had the model fetch
+and "verify" each PDF itself — it took **10 minutes per product** and burned the
+web-tool budget. Downloading the file proves more than the model reading it
+does, and it's far faster.
 
-Both use the same checklist and the same document logic, so keep them in
-sync if you edit one.
+The model is instructed never to guess or pattern-match a URL. A wrong warranty
+document reaching a customer is worse than a blank slot, because the admin
+reviewing it assumes it was checked.
 
-## The checklist (flooring, Canada)
+### When the search can't finish the job
 
-Grouped into five categories — Compliance & Permits, Site Verification &
-Testing, Warranty & Product, Financial & Legal, Handover & Sign-off. The
-one most contractors skip and most often causes callbacks: the **subfloor
-moisture test** — both the app and the skill flag it explicitly and check
-the reading against standard thresholds (ASTM F2170 RH ≤ 75%, or ASTM
-F1869 calcium chloride ≤ 3 lbs/1,000 sq ft/24 hrs) unless the
-manufacturer states otherwise.
+Two things happen regularly and both are handled rather than hidden:
 
-See `claude-skill/closeout-package-builder/templates/checklist-flooring-canada.md`
-for the full list.
+- **The document doesn't exist per-product.** Most manufacturers publish one
+  warranty covering a whole category (e.g. all residential vinyl) rather than
+  one per product line. The app flags this in the notes instead of pretending
+  it's line-specific.
+- **The site blocks automated downloads.** Some manufacturer sites (Torlys, in
+  testing) return HTTP 403 to any non-browser request. The app records the URL
+  it found, marks the product **needs review**, and the admin clicks the link
+  and uploads the PDF manually — one click instead of a search.
 
-## AI-drafted documents
+Anything not downloaded is reported as missing, both in the product list and in
+the package-generation response, so nothing silently ships empty.
 
-Given the project details and checklist status, the system drafts:
-- **Workmanship warranty letter** — separate from the manufacturer's
-  product warranty, states what's covered/excluded and the claim process
-- **Care & maintenance guide** — tailored to the specific flooring
-  type(s) installed, not a generic one-size-fits-all guide
-- **Cover letter** — summarizes what's in the closeout package
-- **Outstanding-items email** — chases the client for whatever's still
-  missing, tied back to why it matters for their warranty
+## Editing the warranty letter
 
-The app also extracts structured data (test method, reading, pass/fail)
-from a pasted moisture-test report using AI, so nobody has to manually
-parse a lab PDF.
+The letter lives in `web/src/lib/warranty-letter.ts`. Replace the text with your
+standard wording — every `{{placeholder}}` (client name, address, completion
+date, warranty period, product list) fills automatically from the project. The
+"Preview letter" button on the project page shows the rendered result.
 
-## Running the web app
+## Running it
 
 ```bash
 cd web
@@ -87,24 +84,20 @@ cp .env.example .env.local   # add your ANTHROPIC_API_KEY
 npm run dev
 ```
 
-Open http://localhost:3000, create a project, and work the checklist.
-Without `ANTHROPIC_API_KEY` set, everything works except the AI drafting
-buttons, which return a clear "not configured" message instead of
-failing silently.
+Open http://localhost:3000. Without an API key everything works except the
+document search, which returns a clear "not configured" message.
 
-See `web/README.md` for more detail on the data model and deployment.
+**Cost note:** the document search uses Claude Opus 5 with web search. Keep an
+eye on your Anthropic credit balance — a handful of product searches is cheap,
+but the earlier fetch-everything design was not.
 
-## Pricing, positioned against the offer ladder
+## Selling this (offer-ladder positioning)
 
-- **Standalone à la carte build:** $1,000–$3,000 one-time to set up a
-  contractor's closeout workflow (checklist customized to their trade,
-  templates tuned to their standard warranty terms, first package run
-  live with them).
-- **Bundled into AI Concierge:** included as one of the recurring AOA
-  builds during $1,000–$2,000/month retainer sessions — every closeout
-  becomes a two-call cycle (audit what's outstanding on the last few
-  jobs, automate the drafting) instead of a one-off sale.
-- **Free/paid assessment hook:** "your closeout process is probably
-  costing you warranty disputes and slow final payments" is a strong
-  quick-win finding to surface in the $999 paid assessment report, with
-  this system as the prescribed fix.
+- **Standalone à la carte build:** $1,000–$3,000 to set up a contractor's
+  closeout workflow — checklist tuned to their trade, letter matched to their
+  standard wording, first packages run with them.
+- **Bundled into AI Concierge:** one of the recurring AOA builds inside a
+  $1,000–$2,000/month retainer.
+- **Assessment hook:** "how long does your admin spend chasing warranty PDFs per
+  job?" is a concrete, quantifiable quick-win finding for the paid assessment,
+  with this as the prescribed fix.
