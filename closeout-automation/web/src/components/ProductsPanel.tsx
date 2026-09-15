@@ -61,6 +61,23 @@ export default function ProductsPanel({
     }
   }
 
+  async function handleFindAll() {
+    setBusy("all");
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/find-all-documents`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const failed = (data.results || []).filter((r: any) => !r.ok);
+      if (failed.length) setError(`${failed.length} product(s) failed to search — see their notes below.`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      await onChange();
+      setBusy(null);
+    }
+  }
+
   async function handleDelete(productId: string) {
     setBusy(productId);
     try {
@@ -98,9 +115,18 @@ export default function ProductsPanel({
             documents. Review what it found before building the package.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={() => setAdding((a) => !a)}>
-          {adding ? "Cancel" : "+ Add product"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn btn-primary"
+            disabled={busy !== null || products.length === 0}
+            onClick={handleFindAll}
+          >
+            {busy === "all" ? "Finding for all products..." : "Find documents for all products"}
+          </button>
+          <button className="btn btn-secondary" onClick={() => setAdding((a) => !a)}>
+            {adding ? "Cancel" : "+ Add product"}
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -146,7 +172,7 @@ export default function ProductsPanel({
         <div className="space-y-3">
           {products.map((p) => {
             const status = STATUS_LABELS[p.search_status] || STATUS_LABELS.not_searched;
-            const isBusy = busy === p.id;
+            const isBusy = busy === p.id || busy === "all";
             return (
               <div key={p.id} className="rounded-lg border border-gray-200 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -157,9 +183,7 @@ export default function ProductsPanel({
                     {p.room && <div className="text-xs text-gray-500">{p.room}</div>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`badge ${status.className}`}>
-                      {isBusy && busy === p.id ? "working..." : status.text}
-                    </span>
+                    <span className={`badge ${status.className}`}>{isBusy ? "working..." : status.text}</span>
                     <button
                       className="btn btn-secondary text-xs"
                       disabled={isBusy}
@@ -182,6 +206,7 @@ export default function ProductsPanel({
                     label="Manufacturer warranty"
                     title={p.warranty_title}
                     url={p.warranty_url}
+                    fileUrl={p.warranty_file_path ? `/api/products/${p.id}/file?kind=warranty` : null}
                     hasFile={Boolean(p.warranty_file_path)}
                     disabled={isBusy}
                     onUpload={(file) => handleUpload(p.id, "warranty", file)}
@@ -190,6 +215,7 @@ export default function ProductsPanel({
                     label="Care & maintenance"
                     title={p.maintenance_title}
                     url={p.maintenance_url}
+                    fileUrl={p.maintenance_file_path ? `/api/products/${p.id}/file?kind=maintenance` : null}
                     hasFile={Boolean(p.maintenance_file_path)}
                     disabled={isBusy}
                     onUpload={(file) => handleUpload(p.id, "maintenance", file)}
@@ -219,6 +245,7 @@ function DocumentSlot({
   label,
   title,
   url,
+  fileUrl,
   hasFile,
   disabled,
   onUpload,
@@ -226,6 +253,7 @@ function DocumentSlot({
   label: string;
   title?: string | null;
   url?: string | null;
+  fileUrl?: string | null;
   hasFile: boolean;
   disabled: boolean;
   onUpload: (file: File) => void;
@@ -239,14 +267,24 @@ function DocumentSlot({
         </span>
       </div>
       {title && <div className="mt-1 truncate text-xs text-gray-600">{title}</div>}
+      {fileUrl && (
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-0.5 block text-xs font-medium text-brand-700 hover:underline"
+        >
+          View attached PDF
+        </a>
+      )}
       {url && (
         <a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="mt-0.5 block truncate text-xs text-brand-600 hover:underline"
+          className="mt-0.5 block truncate text-xs text-gray-500 hover:underline"
         >
-          {url}
+          Source: {url}
         </a>
       )}
       <label className="mt-1 inline-block cursor-pointer text-xs text-gray-500 hover:text-brand-600">

@@ -126,7 +126,7 @@ a document that covers a whole category.`,
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 4000,
-      output_config: { effort: "medium" },
+      output_config: { effort: "low" },
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
       messages,
     });
