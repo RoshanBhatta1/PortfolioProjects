@@ -47,7 +47,7 @@ export async function downloadDocument(
     res = await fetch(url, {
       redirect: "follow",
       headers: browserHeaders(parsed),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(20000),
     });
   } catch (err: any) {
     return { ok: false, url, error: `Fetch failed: ${err.message}` };
@@ -77,22 +77,30 @@ export async function downloadDocument(
   return { ok: true, url, filePath: path.join(projectId, fileName) };
 }
 
-/** Tries candidates best-first; the first one that yields a real PDF wins. */
+/**
+ * Tries every candidate concurrently and returns the best-ranked one that
+ * succeeded. Trying them one at a time (await each before starting the next)
+ * meant a single slow or dead link cost its full 20s timeout before the next
+ * candidate even started — with up to 3 candidates that was over a minute of
+ * dead time per document. Running them in parallel bounds the wait to one
+ * timeout no matter how many candidates there are.
+ */
 export async function downloadFirstWorking(
   urls: string[],
   projectId: string,
   label: string
 ): Promise<{ result: DownloadResult; attempts: string[] }> {
-  const attempts: string[] = [];
-
-  for (const url of urls) {
-    const result = await downloadDocument(url, projectId, label);
-    if (result.ok) return { result, attempts };
-    attempts.push(`${url} — ${result.error}`);
+  if (urls.length === 0) {
+    return { result: { ok: false, error: "No candidates found" }, attempts: [] };
   }
 
-  return {
-    result: { ok: false, error: attempts.length ? "All candidate links failed" : "No candidates found" },
-    attempts,
-  };
+  const settled = await Promise.all(urls.map((url) => downloadDocument(url, projectId, label)));
+
+  const attempts: string[] = [];
+  for (const result of settled) {
+    if (result.ok) return { result, attempts };
+    attempts.push(`${result.url} — ${result.error}`);
+  }
+
+  return { result: { ok: false, error: "All candidate links failed" }, attempts };
 }
